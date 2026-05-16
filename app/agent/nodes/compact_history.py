@@ -6,21 +6,10 @@ from app.agent.context import DataAgentContext
 from app.agent.llm import llm
 from app.agent.state import DataAgentState
 from app.core.log import logger
+from app.prompt.prompt_loader import load_prompt
 
 MAX_HISTORY_TURNS = 5
 KEEP_RECENT_TURNS = 2
-
-COMPRESS_PROMPT = """请将以下多轮对话压缩为一段简洁的摘要，保留关键信息（用户关注的业务主题、已查询的指标、已确认的维度等），供后续SQL生成参考。
-
-对话历史：
-{history}
-
-要求：
-- 用一段话概括，不超过200字
-- 保留具体的业务术语和数据维度
-- 不要遗漏用户的核心关注点
-
-摘要："""
 
 
 async def compact_history(state: DataAgentState, runtime: Runtime[DataAgentContext]):
@@ -42,7 +31,7 @@ async def compact_history(state: DataAgentState, runtime: Runtime[DataAgentConte
     history_text = "\n".join(history_lines)
 
     try:
-        prompt = PromptTemplate(template=COMPRESS_PROMPT, input_variables=["history"])
+        prompt = PromptTemplate(template=load_prompt("compact_history"), input_variables=["history"])
         chain = prompt | llm | StrOutputParser()
         summary = await chain.ainvoke({"history": history_text})
 

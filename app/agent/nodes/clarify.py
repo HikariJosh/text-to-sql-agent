@@ -31,35 +31,7 @@ from app.agent.context import DataAgentContext
 from app.agent.llm import llm
 from app.agent.state import DataAgentState
 from app.core.log import logger
-
-# Clarify的prompt模板
-# 设计原则：宽松放行，只拦截极端模糊的查询
-# - 规则1：有明确意图就OK（排名、统计、对比等）
-# - 规则2：时间范围缺失没关系，add_extra_context会提供默认值
-# - 规则3：只有完全不知道想查什么才提问
-CLARIFY_PROMPT = """你是一个数据查询助手。请判断用户的查询是否足够清晰，能否据此生成SQL。
-
-用户查询：{query}
-
-历史对话：{chat_history}
-
-判断规则：
-1. 只要用户表达了明确的分析意图（比如想看什么数据、排名、统计），就回复OK
-2. 时间范围不完整没关系，系统会默认使用数据最新月份作为时间范围
-3. 只有当查询极其模糊、完全无法判断用户想查什么时，才提问
-
-以下情况都算OK，不要提问：
-- 有明确的分析对象（如"top entry pages"、"各渠道的会话数"）
-- 有排名/聚合意图（如"最多的"、"排名前10"、"统计"）
-- 缺少时间范围或筛选条件（系统会用默认值）
-
-只有以下情况才提问：
-- 查询过于模糊，完全不知道想查什么（如"看看数据"、"帮我看一下"）
-
-如果信息足够，回复：OK
-如果确实太模糊，用一句话礼貌地询问。直接提问，不要解释。
-
-回复："""
+from app.prompt.prompt_loader import load_prompt
 
 
 async def clarify(state: DataAgentState, runtime: Runtime[DataAgentContext]):
@@ -88,7 +60,7 @@ async def clarify(state: DataAgentState, runtime: Runtime[DataAgentContext]):
 
     try:
         # 调用LLM判断信息是否完整
-        prompt = PromptTemplate(template=CLARIFY_PROMPT, input_variables=["query", "chat_history"])
+        prompt = PromptTemplate(template=load_prompt("clarify"), input_variables=["query", "chat_history"])
         chain = prompt | llm | StrOutputParser()
         result = await chain.ainvoke({"query": query, "chat_history": history_text})
         result = result.strip()
