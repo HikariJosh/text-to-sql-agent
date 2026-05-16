@@ -261,19 +261,18 @@ body {
 .copy:hover { color: #1a1a1a; border-color: #bbb; }
 
 /* thinking */
-.think-card { background: #fafafa; border-color: #eee; }
+.think-card { background: #fafafa; border-color: #eee; overflow: visible; }
 .card-head { display: flex; align-items: center; gap: 5px; width: 100%; padding: 8px 14px; border: none; background: none; font-size: 12.5px; font-weight: 500; color: #999; cursor: pointer; transition: color .12s; }
 .card-head:hover { color: #555; }
 .card-head svg { transition: transform .2s; }
 .card-head svg.open { transform: rotate(90deg); }
-.card-body { padding: 0 14px 12px; font-size: 13px; line-height: 1.7; color: #666; }
-.md-body { white-space: pre-wrap; }
+.card-body { padding: 8px 14px 12px; font-size: 13px; line-height: 1.7; color: #666; }
 .md-body p { margin: 0 0 8px; }
 .md-body p:last-child { margin-bottom: 0; }
 .md-body strong { font-weight: 600; color: #444; }
-.md-body ul, .md-body ol { margin: 4px 0; padding-left: 20px; }
+.md-body ul, .md-body ol { margin: 4px 0 4px 16px; padding-left: 16px; }
 .md-body li { margin: 2px 0; }
-.md-body code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+.md-body code { background: #e8e8e8; padding: 1px 4px; border-radius: 3px; font-size: 12px; font-family: "SF Mono", Menlo, Consolas, monospace; }
 
 .think-live { color: #34c759; font-size: 8px; margin-left: 4px; animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
