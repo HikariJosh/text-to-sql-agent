@@ -58,7 +58,8 @@ async def generate_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]
         )
 
         writer({"type": "progress", "step": "生成SQL", "status": "success"})
-        writer({"type": "sql", "sql": result})
+        # SQL暂存到state，不直接展示给用户，等validate通过后再展示
+        writer({"type": "thinking", "content": f"生成SQL：\n```sql\n{result}\n```", "stream": False})
         logger.info(f"生成的SQL: {result}")
         return {"sql": result}
     except Exception as e:

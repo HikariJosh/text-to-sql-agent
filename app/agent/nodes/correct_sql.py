@@ -46,6 +46,9 @@ async def correct_sql(state: DataAgentState, runtime: Runtime[DataAgentContext])
             }
         )
         writer({"type": "progress", "step": "校正SQL", "status": "success"})
+        writer({"type": "thinking", "content": f"SQL已修正：\n```sql\n{result}\n```", "stream": False})
+        # 修正后直接展示给用户（correct_sql只处理语法错误，不需要再验证）
+        writer({"type": "sql", "sql": result})
         logger.info(f"校正后的SQL: {result}")
         return {"sql": result}
     except Exception as e:

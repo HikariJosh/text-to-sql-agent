@@ -23,7 +23,10 @@ from app.repositories.mysql.dw_repository import DWRepository
 
 
 async def validate_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]):
-    """EXPLAIN语法检查：验证SQL能否被数据库解析"""
+    """
+    EXPLAIN语法检查：验证SQL能否被数据库解析
+    验证通过后才将SQL展示给用户（发送sql事件）
+    """
     writer = runtime.stream_writer
     writer({"type": "progress", "step": "验证SQL", "status": "running"})
 
@@ -33,9 +36,13 @@ async def validate_sql(state: DataAgentState, runtime: Runtime[DataAgentContext]
     try:
         await dw_mysql_repository.validate_sql(sql)
         writer({"type": "progress", "step": "验证SQL", "status": "success"})
+        writer({"type": "thinking", "content": "SQL语法验证通过", "stream": False})
+        # 验证通过，此时才将SQL正式展示给用户
+        writer({"type": "sql", "sql": sql})
         logger.info(f"SQL验证成功: {sql}")
         return {"error": None}
     except Exception as e:
         writer({"type": "progress", "step": "验证SQL", "status": "error"})
+        writer({"type": "thinking", "content": f"SQL语法验证失败：{e}", "stream": False})
         logger.error(f"SQL验证失败: {str(e)}")
         return {"error": str(e)}
