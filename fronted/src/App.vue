@@ -33,16 +33,14 @@
             </template>
           </div>
 
-          <!-- 思考：流式逐字输出 -->
+          <!-- 思考：流式逐字输出，支持 markdown 渲染 -->
           <div v-else-if="msg.type === 'thinking'" class="card think-card">
             <button class="card-head" @click="msg.expanded = !msg.expanded">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" :class="{open: msg.expanded}"><polyline points="9 18 15 12 9 6"/></svg>
               思考过程
               <span v-if="msg.streaming" class="think-live">●</span>
             </button>
-            <div v-if="msg.expanded" class="card-body">
-              {{ msg.content }}<span v-if="msg.streaming" class="cursor">|</span>
-            </div>
+            <div v-if="msg.expanded" class="card-body md-body" v-html="renderMd(msg.content)"></div>
           </div>
 
           <div v-else-if="msg.type === 'sql'" class="card sql-card">
@@ -98,6 +96,7 @@
 
 <script setup>
 import {nextTick, onMounted, ref} from "vue";
+import {marked} from "marked";
 
 const API_URL = "/api/query";
 
@@ -135,6 +134,7 @@ function newChat() { messages.value = []; chatHistory.value = []; fetchSuggestio
 function fmt(v) { return v == null ? "—" : typeof v === "number" ? v.toLocaleString() : v; }
 async function copySql(sql) { await navigator.clipboard.writeText(sql); copied.value = true; setTimeout(() => copied.value = false, 2000); }
 function scroll() { const el = messagesEl.value; if (el) el.scrollTop = el.scrollHeight; }
+function renderMd(text) { return marked.parse(text || ""); }
 
 async function send() {
   if (!question.value.trim() || loading.value) return;
@@ -167,9 +167,10 @@ async function send() {
         if (d.type === "progress") {
           let s = steps.find(s => s.text === d.step);
           if (s) s.status = d.status;
-          // 思考完成：关闭流式状态
+          // 思考完成：关闭流式状态并自动折叠
           if (d.step === "思考分析" && d.status === "success" && thinkingIdx >= 0) {
             messages.value[thinkingIdx].streaming = false;
+            messages.value[thinkingIdx].expanded = false;
             thinkingIdx = -1;
           }
         }
@@ -265,7 +266,14 @@ body {
 .card-head:hover { color: #555; }
 .card-head svg { transition: transform .2s; }
 .card-head svg.open { transform: rotate(90deg); }
-.card-body { padding: 0 14px 12px; font-size: 13px; line-height: 1.7; color: #666; white-space: pre-wrap; }
+.card-body { padding: 0 14px 12px; font-size: 13px; line-height: 1.7; color: #666; }
+.md-body { white-space: pre-wrap; }
+.md-body p { margin: 0 0 8px; }
+.md-body p:last-child { margin-bottom: 0; }
+.md-body strong { font-weight: 600; color: #444; }
+.md-body ul, .md-body ol { margin: 4px 0; padding-left: 20px; }
+.md-body li { margin: 2px 0; }
+.md-body code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
 
 .think-live { color: #34c759; font-size: 8px; margin-left: 4px; animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
