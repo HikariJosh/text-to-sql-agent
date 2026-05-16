@@ -48,66 +48,46 @@ from app.prompt.prompt_loader import load_prompt
 
 async def think(state: DataAgentState, runtime: Runtime[DataAgentContext]):
     """
-    思考节点：在生成SQL前分析用户意图，流式输出给用户
+    思考节点：在生成SQL前分析用户意图，自检计算逻辑，流式输出给用户
 
-    支持重入：当validate_sql检测到逻辑错误时，会带错误反馈重新进入此节点，
-    LLM会基于上次的错误信息重新分析计算逻辑，生成更准确的SQL。
+    职责：
+      1. 分析用户想算什么
+      2. 想清楚计算逻辑（分子分母、是否需要LEAD追踪路径、JOIN关系等）
+      3. 自检：检查自己的分析是否有逻辑漏洞
+      4. 规划SQL结构
+
+    这样在think阶段就确保逻辑正确，validate_sql只需要做EXPLAIN语法检查。
     """
     writer = runtime.stream_writer
     writer({"type": "progress", "step": "思考分析", "status": "running"})
 
-    # 从state中读取上游节点产出的数据
     query: str = state["query"]
     table_infos: list[TableInfoState] = state["table_infos"]
     metric_infos: list[MetricInfoState] = state["metric_infos"]
     date_info: DateInfoState = state["date_info"]
-    error: str = state.get("error")
-    error_type: str = state.get("error_type", "")
-    sql: str = state.get("sql", "")
-
-    # 构建错误反馈上下文（仅逻辑错误重入时有值）
-    error_context = ""
-    if error and error_type == "logic":
-        error_context = f"""
-【上次生成的SQL（存在逻辑问题）】
-{sql}
-
-【逻辑问题描述】
-{error}
-
-请仔细分析上述逻辑问题，重新思考正确的计算方式，然后给出修正后的分析。
-"""
 
     try:
-        # 构建LangChain链：prompt → llm → output_parser
         prompt = PromptTemplate(
             template=load_prompt("think"),
-            input_variables=["query", "table_infos", "metric_infos", "date_info", "error_context"],
+            input_variables=["query", "table_infos", "metric_infos", "date_info"],
         )
         chain = prompt | llm | StrOutputParser()
 
-        # 使用astream_events获取LLM的逐token输出
-        # version="v2" 是LangChain 0.2+推荐的事件流版本
         full_text = ""
         async for event in chain.astream_events(
             {
                 "query": query,
-                # table_infos/metric_infos是复杂对象，需要YAML序列化后传给prompt
                 "table_infos": yaml.dump(table_infos, allow_unicode=True, sort_keys=False),
                 "metric_infos": yaml.dump(metric_infos, allow_unicode=True, sort_keys=False),
                 "date_info": yaml.dump(date_info, allow_unicode=True, sort_keys=False),
-                "error_context": error_context,
             },
             version="v2",
         ):
             kind = event["event"]
-            # on_chat_model_stream: LLM每次产出一个token时触发
-            # event["data"]["chunk"] 是一个AIMessageChunk对象，.content是文本内容
             if kind == "on_chat_model_stream":
                 chunk = event["data"].get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
                     full_text += chunk.content
-                    # stream=True 标记这是流式token，前端需要追加而非替换
                     writer({"type": "thinking", "content": chunk.content, "stream": True})
 
         writer({"type": "progress", "step": "思考分析", "status": "success"})

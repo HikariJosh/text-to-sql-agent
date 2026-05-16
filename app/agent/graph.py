@@ -7,8 +7,7 @@ LangGraph状态图定义：定义agent的执行流程
   → merge_retrieved_info → [filter_table, filter_metric](并行)
   → add_extra_context → think → generate_sql → validate_sql
   → (成功) execute_sql → summarize → END
-  → (语法错误) correct_sql → execute_sql → summarize → END
-  → (逻辑错误) think（带错误反馈，重新思考） → generate_sql → validate_sql → ...
+  → (失败) correct_sql → execute_sql → summarize → END
 
 节点说明：
   - compact_history: 对话历史压缩，超过阈值时用LLM将旧对话压缩为摘要
@@ -21,19 +20,16 @@ LangGraph状态图定义：定义agent的执行流程
   - filter_table: LLM裁剪不相关的表和字段，减少噪声
   - filter_metric: LLM裁剪不相关的指标，减少噪声
   - add_extra_context: 补充日期信息（取数据最新时间）和数据库环境信息
-  - think: LLM分析用户意图，流式输出思考过程给前端（逐token推送）
+  - think: LLM分析用户意图，自检计算逻辑，流式输出思考过程
   - generate_sql: LLM生成SQL语句
-  - validate_sql: 两步验证（EXPLAIN语法 + LLM逻辑检查）
+  - validate_sql: EXPLAIN语法检查（不检查逻辑，逻辑在think阶段自检）
   - correct_sql: SQL有语法错误时，LLM尝试修正
   - execute_sql: 在数据仓库上执行SQL，返回查询结果
   - summarize: LLM用自然语言总结查询结果
 
 条件边说明：
   - clarify后: need_clarify=True→END（暂停等用户补充），False→extract_keywords
-  - validate_sql后（三路分支）:
-    - error=None → execute_sql（验证通过）
-    - error≠None, error_type="syntax" → correct_sql（语法错误，修正后执行）
-    - error≠None, error_type="logic" → think（逻辑错误，带反馈重新思考，最多重试2次）
+  - validate_sql后: error=None→execute_sql（语法正确），error不为None→correct_sql（先修正）
 
 并行执行：
   - recall_column/recall_value/recall_metric 三者并行执行
@@ -130,22 +126,13 @@ graph_builder.add_edge("add_extra_context", "think")
 graph_builder.add_edge("think", "generate_sql")
 graph_builder.add_edge("generate_sql", "validate_sql")
 
-# 条件边：根据validate_sql的结果决定下一步（三路分支）
-# - error=None → 验证通过，直接执行
-# - error≠None, error_type="syntax" → 语法错误，correct_sql修正后执行
-# - error≠None, error_type="logic" → 逻辑错误，think带反馈重新思考
-def route_after_validate(state):
-    if state["error"] is None:
-        return "execute_sql"
-    elif state.get("error_type") == "logic":
-        return "think"
-    else:
-        return "correct_sql"
-
+# 条件边：根据validate_sql的结果决定下一步
+# - error为None → 说明SQL语法正确，直接执行
+# - error不为None → 说明SQL有语法错误，先修正再执行
 graph_builder.add_conditional_edges(
     "validate_sql",
-    route_after_validate,
-    {"execute_sql": "execute_sql", "correct_sql": "correct_sql", "think": "think"},
+    lambda state: "execute_sql" if state["error"] is None else "correct_sql",
+    {"execute_sql": "execute_sql", "correct_sql": "correct_sql"},
 )
 
 graph_builder.add_edge("correct_sql", "execute_sql")  # 修正后执行

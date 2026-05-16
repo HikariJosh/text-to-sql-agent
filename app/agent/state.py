@@ -116,6 +116,4 @@ class DataAgentState(TypedDict):
     sql: str  # LLM生成的SQL（generate_sql/correct_sql写入）
 
     error: str  # SQL验证时的错误信息，None表示验证通过（validate_sql写入）
-    error_type: str  # 错误类型：syntax（语法错误→correct_sql）/ logic（逻辑错误→think重新思考）
-    retry_count: int  # 逻辑错误重试次数，防止无限循环（validate_sql递增，上限2次）
     result: list[dict]  # SQL执行结果（execute_sql写入，summarize读取）
