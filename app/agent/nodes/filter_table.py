@@ -44,8 +44,13 @@ async def filter_table(state: DataAgentState, runtime: Runtime[DataAgentContext]
         filtered_table_infos: list[TableInfoState] = []
         for table_info in table_infos:
             if table_info["name"] in result:
+                selected_cols = set(result[table_info["name"]])
+                # 强制保留 PK 和 FK 字段（用于 COUNT DISTINCT 和 JOIN）
+                for col in table_info["columns"]:
+                    if col["role"] in ("PrimaryKey", "ForeignKey"):
+                        selected_cols.add(col["name"])
                 table_info["columns"] = [
-                    column for column in table_info["columns"] if column["name"] in result[table_info["name"]]
+                    column for column in table_info["columns"] if column["name"] in selected_cols
                 ]
                 filtered_table_infos.append(table_info)
 
