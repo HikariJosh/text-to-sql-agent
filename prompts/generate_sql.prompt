@@ -22,30 +22,15 @@
 2. 若指标信息中存在相关指标定义，必须严格遵循其业务口径、计算逻辑、过滤规则与时间口径，不得偏离或重解释，若指标信息未覆盖用户问题中的指标或口径，则基于用户问题语义与通用业务常识进行。
 3. 生成的SQL只能用于查询，不能涉及数据写入、更新、删除等操作。
 4. 生成的SQL的语法必须严格符合数据库环境中指定的数据库类型与版本。
-5. 默认只生成一条SQL，不可生成多条SQL。
+5. 默认只生成一条SQL，不可生成多条SQL。但允许使用 WITH (CTE)、子查询等复杂结构来实现多步骤计算。
 6. 输出必须仅包含一条完整 SQL 语句的纯文本，严禁使用```、```sql 等 Markdown代码块或任何格式化符号。
 7. 若用户未指定时间范围，且查询涉及时间字段（如created_at），默认使用数据最新日期所在月份作为时间范围（即最新日期所在月的第一天到下月第一天）。
 
 【SQL 逻辑规范】
 8. 使用窗口函数（LEAD/LAG/RANK/ROW_NUMBER 等）时，OVER 子句的 ORDER BY 必须使用有实际顺序意义的字段（如时间字段、自增ID），禁止使用分组字段（如 session_id）作为排序依据。
-9. 转化率、漏斗分析等场景，必须确保：
-   - 先正确识别每一步的顺序（通过时间或ID排序）
-   - 分子分母的统计范围必须一致，不能在子查询过滤后又在外层用 CASE WHEN 统计全量数据
-10. 比率计算时，分母为0的情况要用 NULLIF 或 CASE WHEN 处理，避免除零错误。
-11. 多表 JOIN 时，必须确保关联字段的数据类型一致，且关联逻辑正确（一对多关系注意重复计数）。
-
-【正确示例：漏斗/转化率】
-用户问题："从商品页到购物车的转化率是多少？"
-
-错误写法（统计全量页面数，没有追踪用户路径）：
-SELECT COUNT(CASE WHEN pageview_url='/cart' THEN 1 END)*1.0/COUNT(CASE WHEN pageview_url='/products' THEN 1 END) FROM website_pageviews WHERE pageview_url IN ('/products','/cart');
-
-正确写法（用LEAD追踪每个会话的下一步页面）：
-SELECT COUNT(CASE WHEN next_page='/cart' THEN 1 END)*1.0/NULLIF(COUNT(*),0) AS rate FROM (SELECT pageview_url,LEAD(pageview_url) OVER(PARTITION BY website_session_id ORDER BY website_pageview_id) AS next_page FROM website_pageviews) t WHERE pageview_url='/products';
-
-核心区别：
-- 错误：统计"/cart出现次数 / /products出现次数"，两者无因果关系
-- 正确：统计"从/products出发的会话中，下一步是/cart的比例"，追踪用户行为路径
+9. 比率计算时，分母为0的情况要用 NULLIF 或 CASE WHEN 处理，避免除零错误。
+10. 多表 JOIN 时，必须确保关联字段的数据类型一致，且关联逻辑正确（一对多关系注意重复计数）。
+11. 复杂查询（多步骤计算、漏斗分析、需要中间结果）优先使用 WITH (CTE) 拆分逻辑，每个 CTE 负责一个计算步骤，最终 SELECT 汇总结果。
 
 用户查询如下：
 {query}
