@@ -47,7 +47,12 @@ from app.prompt.prompt_loader import load_prompt
 
 
 async def think(state: DataAgentState, runtime: Runtime[DataAgentContext]):
-    """思考节点：在生成SQL前分析用户意图，流式输出给用户"""
+    """
+    思考节点：在生成SQL前分析用户意图，流式输出给用户
+
+    支持重入：当validate_sql检测到逻辑错误时，会带错误反馈重新进入此节点，
+    LLM会基于上次的错误信息重新分析计算逻辑，生成更准确的SQL。
+    """
     writer = runtime.stream_writer
     writer({"type": "progress", "step": "思考分析", "status": "running"})
 
@@ -56,12 +61,28 @@ async def think(state: DataAgentState, runtime: Runtime[DataAgentContext]):
     table_infos: list[TableInfoState] = state["table_infos"]
     metric_infos: list[MetricInfoState] = state["metric_infos"]
     date_info: DateInfoState = state["date_info"]
+    error: str = state.get("error")
+    error_type: str = state.get("error_type", "")
+    sql: str = state.get("sql", "")
+
+    # 构建错误反馈上下文（仅逻辑错误重入时有值）
+    error_context = ""
+    if error and error_type == "logic":
+        error_context = f"""
+【上次生成的SQL（存在逻辑问题）】
+{sql}
+
+【逻辑问题描述】
+{error}
+
+请仔细分析上述逻辑问题，重新思考正确的计算方式，然后给出修正后的分析。
+"""
 
     try:
         # 构建LangChain链：prompt → llm → output_parser
         prompt = PromptTemplate(
             template=load_prompt("think"),
-            input_variables=["query", "table_infos", "metric_infos", "date_info"],
+            input_variables=["query", "table_infos", "metric_infos", "date_info", "error_context"],
         )
         chain = prompt | llm | StrOutputParser()
 
@@ -75,6 +96,7 @@ async def think(state: DataAgentState, runtime: Runtime[DataAgentContext]):
                 "table_infos": yaml.dump(table_infos, allow_unicode=True, sort_keys=False),
                 "metric_infos": yaml.dump(metric_infos, allow_unicode=True, sort_keys=False),
                 "date_info": yaml.dump(date_info, allow_unicode=True, sort_keys=False),
+                "error_context": error_context,
             },
             version="v2",
         ):
