@@ -34,7 +34,7 @@ tables:
         type: bigint unsigned
         role: ForeignKey
         examples: [1, 2, 3]
-        description: 被退商品明细ID。
+        description: 被退商品明细ID。通过 order_item_id 关联 order_items 表。
         alias: [订单项ID]
         sync: false
 
@@ -43,7 +43,7 @@ tables:
         type: bigint unsigned
         role: ForeignKey
         examples: [1, 2, 3]
-        description: 所属订单ID。
+        description: 所属订单ID。通过 order_id 关联 orders 表。
         alias: [订单ID]
         sync: false
 
@@ -83,7 +83,7 @@ tables:
         type: bigint unsigned
         role: ForeignKey
         examples: [1, 2, 3]
-        description: 所属订单ID。
+        description: 所属订单ID。通过 order_id 关联 orders 表。
         alias: [订单ID]
         sync: false
 
@@ -92,7 +92,7 @@ tables:
         type: smallint unsigned
         role: ForeignKey
         examples: [1, 2, 3, 4]
-        description: 商品ID。
+        description: 商品ID。通过 product_id 关联 products 表。
         alias: [产品ID, 商品ID]
         sync: false
 
@@ -150,7 +150,7 @@ tables:
         type: bigint unsigned
         role: ForeignKey
         examples: [1, 2, 3]
-        description: 产生订单的会话ID(0或1关系)。
+        description: 产生订单的会话ID。通过 website_session_id 关联 website_sessions 表，一个会话最多产生一个订单。
         alias: [会话ID]
         sync: false
 
@@ -159,7 +159,7 @@ tables:
         type: bigint unsigned
         role: Dimension
         examples: [1, 2, 3]
-        description: 下单用户ID。
+        description: 下单用户ID。通过 user_id 关联 website_sessions 表。
         alias: [用户ID, 客户ID]
         sync: false
 
@@ -168,7 +168,7 @@ tables:
         type: smallint unsigned
         role: ForeignKey
         examples: [1, 2, 3, 4]
-        description: 订单主商品ID。
+        description: 订单主商品ID。通过 primary_product_id 关联 products 表。
         alias: [产品ID, 商品ID]
         sync: false
 
@@ -257,7 +257,7 @@ tables:
         type: bigint unsigned
         role: ForeignKey
         examples: [1, 2, 3]
-        description: 所属会话ID。
+        description: 所属会话ID。通过 website_session_id 关联 website_sessions 表，一个会话可有多条页面浏览记录。
         alias: [会话ID]
         sync: false
 
