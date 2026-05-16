@@ -1,0 +1,121 @@
+metrics:
+  - metric_id: total_sessions
+    name: total_sessions
+    description: 总会话数。
+    relevant_columns: [website_sessions.website_session_id]
+    formula: COUNT(DISTINCT website_session_id)
+    alias: [会话数, 访问量, sessions]
+
+  - metric_id: channel_sessions
+    name: channel_sessions
+    description: 按渠道切分会话数。<channel>替换。
+    relevant_columns:
+      - website_sessions.website_session_id
+      - website_sessions.utm_source
+    formula: COUNT(DISTINCT CASE WHEN utm_source="<channel>" THEN website_session_id END)
+    alias: [渠道会话, 来源会话, traffic by channel]
+
+  - metric_id: device_sessions
+    name: device_sessions
+    description: 按设备切分会话数。<device>替换。
+    relevant_columns:
+      - website_sessions.website_session_id
+      - website_sessions.device_type
+    formula: COUNT(DISTINCT CASE WHEN device_type="<device>" THEN website_session_id END)
+    alias: [设备会话, 终端会话]
+
+  - metric_id: session_to_order_cvr
+    name: session_to_order_cvr
+    description: 会话到订单转化率。LEFT JOIN保留所有session。
+    relevant_columns:
+      - website_sessions.website_session_id
+      - orders.order_id
+    formula: >
+      COUNT(DISTINCT o.order_id) / NULLIF(COUNT(DISTINCT ws.website_session_id), 0)
+      FROM website_sessions ws LEFT JOIN orders o ON ws.website_session_id = o.website_session_id
+    alias: [转化率, CVR, 下单率, conversion rate]
+
+  - metric_id: bounce_rate
+    name: bounce_rate
+    description: 跳出率。只看1页就离开比例。
+    relevant_columns:
+      - website_pageviews.website_session_id
+      - website_pageviews.website_pageview_id
+      - website_pageviews.pageview_url
+    formula: 两表JOIN后 SUM(CASE WHEN pageview_count=1) / COUNT(*)
+    alias: [跳出率, bounce, 跳失率]
+
+  - metric_id: funnel_step_rate
+    name: funnel_step_rate
+    description: 漏斗单步转化率。<from_page>/<to_page>替换。
+    relevant_columns:
+      - website_pageviews.website_session_id
+      - website_pageviews.pageview_url
+    formula: >
+      COUNT(DISTINCT CASE WHEN pageview_url="<to_page>" THEN session_id END)
+      / NULLIF(COUNT(DISTINCT CASE WHEN pageview_url="<from_page>" THEN session_id END), 0)
+    alias: [漏斗转化率, 步骤转化率, funnel conversion]
+
+  - metric_id: mobile_session_pct
+    name: mobile_session_pct
+    description: 移动端会话占比。
+    relevant_columns:
+      - website_sessions.website_session_id
+      - website_sessions.device_type
+    formula: >
+      COUNT(DISTINCT CASE WHEN device_type="mobile" THEN website_session_id END)
+      / NULLIF(COUNT(DISTINCT website_session_id), 0)
+    alias: [移动占比, mobile%, 移动端比例]
+
+  - metric_id: avg_order_value
+    name: avg_order_value
+    description: 平均订单金额(AOV)。
+    relevant_columns: [orders.price_usd]
+    formula: AVG(price_usd) FROM orders
+    alias: [客单价, AOV, 平均客单价]
+
+  - metric_id: total_revenue
+    name: total_revenue
+    description: 总收入。
+    relevant_columns:
+      - orders.price_usd
+      - website_sessions.utm_source
+    formula: >
+      SUM(o.price_usd) FROM orders o
+      JOIN website_sessions ws ON o.website_session_id = ws.website_session_id
+    alias: [收入, 销售额, 营收, revenue, GMV]
+
+  - metric_id: repeat_session_ratio
+    name: repeat_session_ratio
+    description: 回访会话占比。
+    relevant_columns:
+      - website_sessions.website_session_id
+      - website_sessions.is_repeat_session
+    formula: >
+      COUNT(DISTINCT CASE WHEN is_repeat_session=1 THEN website_session_id END)
+      / NULLIF(COUNT(DISTINCT website_session_id), 0)
+    alias: [回访占比, 重复访问率, 回头客比例]
+
+  - metric_id: product_sales_count
+    name: product_sales_count
+    description: 各商品销量排行。
+    relevant_columns:
+      - order_items.product_id
+      - products.product_name
+    formula: >
+      SELECT p.product_name, COUNT(*) FROM order_items oi
+      JOIN products p ON oi.product_id = p.product_id
+      GROUP BY p.product_name ORDER BY COUNT(*) DESC
+    alias: [商品销量, 产品销售, 热门商品, 销量排行]
+
+  - metric_id: incremental_orders
+    name: incremental_orders
+    description: A/B测试增量订单数。
+    relevant_columns:
+      - website_sessions.website_session_id
+      - orders.order_id
+    formula: >
+      Step1: 算实验组(/lander-1)和对照组(/home)的CVR差值;
+      Step2: 增量订单 = 实验组session数 x CVR差值;
+      示例: 22972 x 0.88% = 202
+    alias: [增量订单, 实验增量, AB测试提升]

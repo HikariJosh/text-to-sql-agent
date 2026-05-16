@@ -1,0 +1,356 @@
+# Schema 说明:
+#   tables[].columns[] 中的字段分两类:
+#     - 代码使用: name, role, description, alias, sync (加载到 ColumnConfig，参与构建)
+#     - 人工参考: column_id, type, examples (不加载，仅作为文档备查)
+#   sync 字段说明:
+#     - true: 维度字段，取值需同步到 ES 做全文检索（用户可能用自然语言描述的值）
+#     - false: 主键/外键/数值/时间字段，不需要全文检索
+#
+tables:
+  - name: order_item_refunds
+    role: fact
+    description: 退款表
+    columns:
+      - column_id: order_item_refunds.order_item_refund_id  # 人工参考
+        name: order_item_refund_id
+        type: bigint unsigned # 人工参考
+        role: PrimaryKey
+        examples: [1, 2, 3]  # 人工参考
+        description: 退款记录唯一ID。
+        alias: [退款ID]
+        sync: false
+
+      - column_id: order_item_refunds.created_at
+        name: created_at
+        type: timestamp
+        role: Dimension
+        examples: ['2012-04-06 11:32:43']
+        description: 退款时间。
+        alias: [退款时间]
+        sync: false
+
+      - column_id: order_item_refunds.order_item_id
+        name: order_item_id
+        type: bigint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3]
+        description: 被退商品明细ID。
+        alias: [订单项ID]
+        sync: false
+
+      - column_id: order_item_refunds.order_id
+        name: order_id
+        type: bigint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3]
+        description: 所属订单ID。
+        alias: [订单ID]
+        sync: false
+
+      - column_id: order_item_refunds.refund_amount_usd
+        name: refund_amount_usd
+        type: decimal(6,2)
+        role: Measure
+        examples: [49.99, 29.99]
+        description: 退款金额(美元)。
+        alias: [退款金额, 退款]
+        sync: false
+
+  - name: order_items
+    role: fact
+    description: 订单明细表
+    columns:
+      - column_id: order_items.order_item_id
+        name: order_item_id
+        type: bigint unsigned
+        role: PrimaryKey
+        examples: [1, 2, 3]
+        description: 订单项唯一ID。
+        alias: [订单项ID]
+        sync: false
+
+      - column_id: order_items.created_at
+        name: created_at
+        type: timestamp
+        role: Dimension
+        examples: ['2012-03-19 10:42:46']
+        description: 创建时间。
+        alias: [创建时间]
+        sync: false
+
+      - column_id: order_items.order_id
+        name: order_id
+        type: bigint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3]
+        description: 所属订单ID。
+        alias: [订单ID]
+        sync: false
+
+      - column_id: order_items.product_id
+        name: product_id
+        type: smallint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3, 4]
+        description: 商品ID。
+        alias: [产品ID, 商品ID]
+        sync: false
+
+      - column_id: order_items.is_primary_item
+        name: is_primary_item
+        type: smallint unsigned
+        role: Dimension
+        examples: [0, 1]
+        description: 是否主商品(1=是,0=附加)。
+        alias: [是否主商品]
+        sync: false
+
+      - column_id: order_items.price_usd
+        name: price_usd
+        type: decimal(6,2)
+        role: Measure
+        examples: [49.99, 29.99]
+        description: 该商品项金额(美元)。
+        alias: [金额, 价格]
+        sync: false
+
+      - column_id: order_items.cogs_usd
+        name: cogs_usd
+        type: decimal(6,2)
+        role: Measure
+        examples: [12.99, 10.99]
+        description: 该商品项成本(美元)。
+        alias: [成本]
+        sync: false
+
+  - name: orders
+    role: fact
+    description: 订单表
+    columns:
+      - column_id: orders.order_id
+        name: order_id
+        type: bigint unsigned
+        role: PrimaryKey
+        examples: [1, 2, 3]
+        description: 订单唯一标识。
+        alias: [订单ID]
+        sync: false
+
+      - column_id: orders.created_at
+        name: created_at
+        type: timestamp
+        role: Dimension
+        examples: ['2012-03-19 10:42:46']
+        description: 下单时间。
+        alias: [下单时间, 订单时间]
+        sync: false
+
+      - column_id: orders.website_session_id
+        name: website_session_id
+        type: bigint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3]
+        description: 产生订单的会话ID(0或1关系)。
+        alias: [会话ID]
+        sync: false
+
+      - column_id: orders.user_id
+        name: user_id
+        type: bigint unsigned
+        role: Dimension
+        examples: [1, 2, 3]
+        description: 下单用户ID。
+        alias: [用户ID, 客户ID]
+        sync: false
+
+      - column_id: orders.primary_product_id
+        name: primary_product_id
+        type: smallint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3, 4]
+        description: 订单主商品ID。
+        alias: [产品ID, 商品ID]
+        sync: false
+
+      - column_id: orders.items_purchased
+        name: items_purchased
+        type: smallint unsigned
+        role: Measure
+        examples: [1, 2, 3]
+        description: 购买商品件数。
+        alias: [购买数量, 件数, 数量]
+        sync: false
+
+      - column_id: orders.price_usd
+        name: price_usd
+        type: decimal(6,2)
+        role: Measure
+        examples: [49.99, 29.99, 39.99]
+        description: 订单总金额(美元)。
+        alias: [订单金额, 金额, 价格, 销售额]
+        sync: false
+
+      - column_id: orders.cogs_usd
+        name: cogs_usd
+        type: decimal(6,2)
+        role: Measure
+        examples: [12.99, 10.99, 14.99]
+        description: 订单总成本(美元)。
+        alias: [成本, 成本金额]
+        sync: false
+
+  - name: products
+    role: dim
+    description: 产品维度表
+    columns:
+      - column_id: products.product_id
+        name: product_id
+        type: bigint unsigned
+        role: PrimaryKey
+        examples: [1, 2, 3, 4]
+        description: 产品唯一标识。
+        alias: [产品ID, 商品ID]
+        sync: false
+
+      - column_id: products.created_at
+        name: created_at
+        type: timestamp
+        role: Dimension
+        examples: ['2012-03-19', '2013-01-06']
+        description: 产品上架时间。
+        alias: [上架时间]
+        sync: false
+
+      - column_id: products.product_name
+        name: product_name
+        type: varchar(50)
+        role: Dimension
+        examples: [The Original Mr. Fuzzy, The Forever Love Bear]
+        description: 产品名称。
+        alias: [产品名称, 商品名称]
+        sync: true
+
+  - name: website_pageviews
+    role: fact
+    description: 网站页面浏览表
+    columns:
+      - column_id: website_pageviews.website_pageview_id
+        name: website_pageview_id
+        type: bigint unsigned
+        role: PrimaryKey
+        examples: [1, 2, 3]
+        description: 页面浏览唯一ID。
+        alias: [页面浏览ID, pageview ID]
+        sync: false
+
+      - column_id: website_pageviews.created_at
+        name: created_at
+        type: timestamp
+        role: Dimension
+        examples: ['2012-03-19 08:04:16']
+        description: 页面访问时间。
+        alias: [访问时间]
+        sync: false
+
+      - column_id: website_pageviews.website_session_id
+        name: website_session_id
+        type: bigint unsigned
+        role: ForeignKey
+        examples: [1, 2, 3]
+        description: 所属会话ID。
+        alias: [会话ID]
+        sync: false
+
+      - column_id: website_pageviews.pageview_url
+        name: pageview_url
+        type: varchar(50)
+        role: Dimension
+        examples: [/home, /products, /cart, /shipping, /billing-2, /thank-you-for-your-order]
+        description: 页面路径。漏斗顺序:/home>/products>/mr-fuzzy>/cart>/shipping>/billing>/thank-you。
+        alias: [页面URL, 页面路径, 页面]
+        sync: true
+
+  - name: website_sessions
+    role: fact
+    description: 网站会话表
+    columns:
+      - column_id: website_sessions.website_session_id
+        name: website_session_id
+        type: bigint unsigned
+        role: PrimaryKey
+        examples: [1, 2, 3]
+        description: 会话唯一标识。
+        alias: [会话ID, session ID]
+        sync: false
+
+      - column_id: website_sessions.created_at
+        name: created_at
+        type: timestamp
+        role: Dimension
+        examples: ['2012-03-19 08:04:16']
+        description: 会话开始时间。
+        alias: [访问时间, 会话时间]
+        sync: false
+
+      - column_id: website_sessions.user_id
+        name: user_id
+        type: bigint unsigned
+        role: Dimension
+        examples: [1, 2, 3]
+        description: 访客用户ID。
+        alias: [用户ID, 访客ID]
+        sync: false
+
+      - column_id: website_sessions.is_repeat_session
+        name: is_repeat_session
+        type: smallint unsigned
+        role: Dimension
+        examples: [0, 1]
+        description: 是否回头客(0=新,1=回访)。
+        alias: [是否回头客, 回访]
+        sync: false
+
+      - column_id: website_sessions.utm_source
+        name: utm_source
+        type: varchar(12)
+        role: Dimension
+        examples: [gsearch, bsearch, socialbook]
+        description: 流量来源:gsearch/bsearch/socialbook。
+        alias: [来源, 渠道, 流量来源, utm来源]
+        sync: true
+
+      - column_id: website_sessions.utm_campaign
+        name: utm_campaign
+        type: varchar(20)
+        role: Dimension
+        examples: [nonbrand, brand, desktop_targeted, pilot]
+        description: 广告系列。
+        alias: [活动, 广告系列, utm活动, campaign]
+        sync: true
+
+      - column_id: website_sessions.utm_content
+        name: utm_content
+        type: varchar(15)
+        role: Dimension
+        examples: [g_ad_1, g_ad_2, b_ad_1, b_ad_2]
+        description: 广告素材版本。
+        alias: [广告内容, utm内容]
+        sync: true
+
+      - column_id: website_sessions.device_type
+        name: device_type
+        type: varchar(15)
+        role: Dimension
+        examples: [desktop, mobile]
+        description: 设备类型。
+        alias: [设备类型, 设备, 终端]
+        sync: true
+
+      - column_id: website_sessions.http_referer
+        name: http_referer
+        type: varchar(30)
+        role: Dimension
+        examples: [https://www.gsearch.com, https://www.bsearch.com]
+        description: 引荐来源。
+        alias: [来源页面, 引荐来源, referer]
+        sync: true

@@ -1,0 +1,17 @@
+.venv
+.git
+__pycache__
+*.pyc
+*.pyo
+.idea
+.vscode
+.claude
+.history
+.accelerate
+.env
+logs
+*.md
+tests
+.DS_Store
+.dockerignore
+docker/embedding
