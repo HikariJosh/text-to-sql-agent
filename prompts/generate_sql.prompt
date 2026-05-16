@@ -34,6 +34,19 @@
 10. 比率计算时，分母为0的情况要用 NULLIF 或 CASE WHEN 处理，避免除零错误。
 11. 多表 JOIN 时，必须确保关联字段的数据类型一致，且关联逻辑正确（一对多关系注意重复计数）。
 
+【正确示例：漏斗/转化率】
+用户问题："从商品页到购物车的转化率是多少？"
+
+错误写法（统计全量页面数，没有追踪用户路径）：
+SELECT COUNT(CASE WHEN pageview_url='/cart' THEN 1 END)*1.0/COUNT(CASE WHEN pageview_url='/products' THEN 1 END) FROM website_pageviews WHERE pageview_url IN ('/products','/cart');
+
+正确写法（用LEAD追踪每个会话的下一步页面）：
+SELECT COUNT(CASE WHEN next_page='/cart' THEN 1 END)*1.0/NULLIF(COUNT(*),0) AS rate FROM (SELECT pageview_url,LEAD(pageview_url) OVER(PARTITION BY website_session_id ORDER BY website_pageview_id) AS next_page FROM website_pageviews) t WHERE pageview_url='/products';
+
+核心区别：
+- 错误：统计"/cart出现次数 / /products出现次数"，两者无因果关系
+- 正确：统计"从/products出发的会话中，下一步是/cart的比例"，追踪用户行为路径
+
 用户查询如下：
 {query}
 
